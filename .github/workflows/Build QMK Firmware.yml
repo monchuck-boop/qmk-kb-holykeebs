@@ -10,7 +10,7 @@ on:
       keymap:
         description: 'ビルドするキーマップ名'
         required: true
-        default: 'via','default'
+        default: 'via''default'
       oled:
         description: 'OLEDを有効にするか (yes / no)'
         required: true
