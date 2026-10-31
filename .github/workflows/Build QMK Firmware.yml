@@ -5,13 +5,12 @@ on:
     branches: [ "hk-master" ]
   pull_request:
     branches: [ "hk-master" ]
-  # 👇 これがGitHub上でボタンを表示し、設定を選んで実行できるようにする記述です
   workflow_dispatch:
     inputs:
       keymap:
         description: 'ビルドするキーマップ名'
         required: true
-        default: 'via'
+        default: 'via','default'
       oled:
         description: 'OLEDを有効にするか (yes / no)'
         required: true
@@ -36,6 +35,14 @@ jobs:
       run: |
         make holykeebs/keyball61:${{ github.event.inputs.keymap }} -e OLED=${{ github.event.inputs.oled }}
 
+    - name: Check generated files
+      run: |
+        echo "=== Current Directory Files ==="
+        ls -la *.hex *.bin *.uf2 2>/dev/null || true
+        echo "=== QMK Home Directory Files ==="
+        ls -la /root/qmk_firmware/*.hex /root/qmk_firmware/*.bin /root/qmk_firmware/*.uf2 2>/dev/null || true
+
+    # 👇 プラグイン名を「upload-artifact」に修正し、ファイル検索の範囲を広げました
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
@@ -44,3 +51,7 @@ jobs:
           *.hex
           *.bin
           *.uf2
+          /root/qmk_firmware/*.hex
+          /root/qmk_firmware/*.bin
+          /root/qmk_firmware/*.uf2
+        if-no-files-found: error
