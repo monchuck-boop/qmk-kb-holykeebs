@@ -1,0 +1,46 @@
+name: Build QMK Firmware
+
+on:
+  push:
+    branches: [ "hk-master" ]
+  pull_request:
+    branches: [ "hk-master" ]
+  # 👇 これがGitHub上でボタンを表示し、設定を選んで実行できるようにする記述です
+  workflow_dispatch:
+    inputs:
+      keymap:
+        description: 'ビルドするキーマップ名'
+        required: true
+        default: 'via'
+      oled:
+        description: 'OLEDを有効にするか (yes / no)'
+        required: true
+        default: 'yes'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: qmkfm/qmk_cli:latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Initialize QMK
+      run: |
+        qmk setup -y
+
+    - name: Build Keyball61 Firmware
+      run: |
+        make holykeebs/keyball61:${{ github.event.inputs.keymap }} -e OLED=${{ github.event.inputs.oled }}
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: keyball61-${{ github.event.inputs.keymap }}-firmware
+        path: |
+          *.hex
+          *.bin
+          *.uf2
