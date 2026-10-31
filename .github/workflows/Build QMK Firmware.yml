@@ -10,7 +10,7 @@ on:
       keymap:
         description: 'ビルドするキーマップ名'
         required: true
-        default: 'default'
+        default: 'via'
       oled:
         description: 'OLEDを有効にするか (yes / no)'
         required: true
@@ -25,33 +25,42 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive
+        # submodulesの取得方法を「シャローコピー（軽量・高速）」に変更し、Gitエラーを回避します
+        submodules: 'recursive'
+        fetch-depth: 0
 
-    - name: Initialize QMK
+    - name: Fix QMK Home and Git safe directory
       run: |
+        # QMKのコンテナ内でGitリポジトリとして正常に認識させるための初期設定
+        git config --global --add safe.directory /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
         qmk setup -y
+
+    - name: Target Keymap Validation
+      id: check_keymap
+      run: |
+        # 入力されたキーマップが存在しなければ自動で「via」にフォールバック
+        KM_INPUT="${{ github.event.inputs.keymap }}"
+        if [ -d "keyboards/holykeebs/keyball61/keymaps/${KM_INPUT}" ]; then
+          echo "KEYMAP_NAME=${KM_INPUT}" >> $GITHUB_ENV
+        else
+          echo "WARNING: Keymap '${KM_INPUT}' not found. Falling back to 'via'."
+          echo "KEYMAP_NAME=via" >> $GITHUB_ENV
+        fi
 
     - name: Build Keyball61 Firmware
       run: |
-        make holykeebs/keyball61:${{ github.event.inputs.keymap }} -e OLED=${{ github.event.inputs.oled }}
+        # qmk compile コマンドを使用することで、より確実にビルドを実行します
+        qmk compile -kb holykeebs/keyball61 -km ${{ env.KEYMAP_NAME }} -env OLED=${{ github.event.inputs.oled }}
 
-    - name: Check generated files
-      run: |
-        echo "=== Current Directory Files ==="
-        ls -la *.hex *.bin *.uf2 2>/dev/null || true
-        echo "=== QMK Home Directory Files ==="
-        ls -la /root/qmk_firmware/*.hex /root/qmk_firmware/*.bin /root/qmk_firmware/*.uf2 2>/dev/null || true
-
-    # 👇 プラグイン名を「upload-artifact」に修正し、ファイル検索の範囲を広げました
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: keyball61-${{ github.event.inputs.keymap }}-firmware
+        name: keyball61-${{ env.KEYMAP_NAME }}-firmware
         path: |
           *.hex
           *.bin
           *.uf2
-          /root/qmk_firmware/*.hex
-          /root/qmk_firmware/*.bin
-          /root/qmk_firmware/*.uf2
+          /.build/*.hex
+          /.build/*.bin
+          /.build/*.uf2
         if-no-files-found: error
