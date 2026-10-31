@@ -25,20 +25,19 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        # submodulesの取得方法を「シャローコピー（軽量・高速）」に変更し、Gitエラーを回避します
         submodules: 'recursive'
         fetch-depth: 0
 
     - name: Fix QMK Home and Git safe directory
       run: |
-        # QMKのコンテナ内でGitリポジトリとして正常に認識させるための初期設定
+        # コンテナ内でGitエラー（not a git repo）が出ないようにディレクトリを安全な場所として登録
         git config --global --add safe.directory /__w/${{ github.event.repository.name }}/${{ github.event.repository.name }}
         qmk setup -y
 
     - name: Target Keymap Validation
       id: check_keymap
       run: |
-        # 入力されたキーマップが存在しなければ自動で「via」にフォールバック
+        # 入力されたキーマップが存在しなければ自動で「via」に切り替える
         KM_INPUT="${{ github.event.inputs.keymap }}"
         if [ -d "keyboards/holykeebs/keyball61/keymaps/${KM_INPUT}" ]; then
           echo "KEYMAP_NAME=${KM_INPUT}" >> $GITHUB_ENV
@@ -49,8 +48,8 @@ jobs:
 
     - name: Build Keyball61 Firmware
       run: |
-        # qmk compile コマンドを使用することで、より確実にビルドを実行します
-        qmk compile -kb holykeebs/keyball61 -km ${{ env.KEYMAP_NAME }} -env OLED=${{ github.event.inputs.oled }}
+        # 正しい環境で元の信頼性の高い make コマンドを叩きます
+        make holykeebs/keyball61:${{ env.KEYMAP_NAME }} -e OLED=${{ github.event.inputs.oled }}
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -60,7 +59,7 @@ jobs:
           *.hex
           *.bin
           *.uf2
-          /.build/*.hex
-          /.build/*.bin
-          /.build/*.uf2
+          .build/*.hex
+          .build/*.bin
+          .build/*.uf2
         if-no-files-found: error
