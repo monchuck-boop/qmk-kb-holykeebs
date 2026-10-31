@@ -1,0 +1,36 @@
+name: Build QMK Firmware
+
+on:
+  push:
+    branches: [ "hk-master" ]
+  pull_request:
+    branches: [ "hk-master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: qmkfm/qmk_cli:latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Initialize QMK
+      run: |
+        qmk setup -y
+
+    - name: Build Keyball61 Firmware
+      run: |
+        make holykeebs/keyball61:via -e OLED=yes
+
+    - name: Upload Artifact
+      uses: actions/artifacts@v4
+      with:
+        name: keyball61-firmware
+        path: |
+          *.hex
+          *.bin
+          *.uf2
